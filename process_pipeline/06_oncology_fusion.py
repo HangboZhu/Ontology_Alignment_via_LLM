@@ -92,6 +92,7 @@ def main():
 
     df = pd.read_csv(args.input)
     
+    # 修改了这歌，是需要输入json转换完的csv文件就可以了 Json ==> flatten csv(把filter的代码整合到这里了)
     df = df[df["meta_deprecated"] != True]
     if args.mode == "lbl2lbl":
         df = df[df["lbl"].notna()]
