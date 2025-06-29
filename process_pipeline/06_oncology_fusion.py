@@ -43,17 +43,21 @@ def compute_and_save(df, field, tokenizer, model, batch_size, cutoff, out_path, 
         query_id = df.iloc[q_idx]["id"]
         query_lbl = df.iloc[q_idx]["lbl"]
         query_out = q_text if mode == 'lbl2lbl' else query_lbl
+        query_description = df.iloc[q_idx]["meta_definition_val"]
 
         matched = [i for i, s in enumerate(sim_vec) if i != q_idx and s > cutoff]
         if matched:
             for idx in matched:
                 row = df.iloc[idx]
                 results.append({
-                    "query": query_out,
                     "query_id": query_id,
-                    "predicted_description": row["meta_definition_val"],
+                    "query_lbl": query_out,
+                    "query_description": query_description, 
+                    
                     "predicted_id": row["id"],
-                    "predicted_label": row["lbl"],
+                    "predicted_lbl": row["lbl"],
+                    "predicted_description": row["meta_definition_val"],
+                    
                     "distance": dist_vec[idx],
                     "similarity": sim_vec[idx],
                     "predicted_synonym_level": f"{field} cutoff > {cutoff}",
@@ -62,16 +66,19 @@ def compute_and_save(df, field, tokenizer, model, batch_size, cutoff, out_path, 
                 })
         else:
             results.append({
-                "query": query_out,
-                "query_id": query_id,
-                "predicted_description": "",
-                "predicted_id": "",
-                "predicted_label": "",
-                "distance": "",
-                "similarity": "",
-                "predicted_synonym_level": "",
-                "synonym_similarity_mean": "",
-                "cluster": "self"
+                    "query_id": query_id,
+                    "query_lbl": query_out,
+                    "query_description": query_description, 
+                    
+                    "predicted_id": "",
+                    "predicted_lbl": "",
+                    "predicted_description": "",
+                    
+                    "distance": "",
+                    "similarity": "",
+                    "predicted_synonym_level": "",
+                    "synonym_similarity_mean": "",
+                    "cluster": "self"
             })
 
     out_df = pd.DataFrame(results)
@@ -82,7 +89,7 @@ def compute_and_save(df, field, tokenizer, model, batch_size, cutoff, out_path, 
 def main():
     parser = argparse.ArgumentParser(description="Similarity matching using embeddings")
     parser.add_argument('-i', '--input', required=True, help='Input CSV file')
-    parser.add_argument('-o', '--output', required=True, help='Output file or folder')
+    parser.add_argument('-o', '--output', required=True, help='Output folder')
     parser.add_argument('-c', '--cutoff', type=float, default=0.85, help='Similarity cutoff')
     parser.add_argument('--model', required=True, help='HuggingFace model path')
     parser.add_argument('-b', '--batch_size', type=int, default=1024, help='Batch size')
@@ -92,7 +99,6 @@ def main():
 
     df = pd.read_csv(args.input)
     
-    # 修改了这歌，是需要输入json转换完的csv文件就可以了 Json ==> flatten csv(把filter的代码整合到这里了)
     df = df[df["meta_deprecated"] != True]
     if args.mode == "lbl2lbl":
         df = df[df["lbl"].notna()]
@@ -105,14 +111,19 @@ def main():
     model = AutoModel.from_pretrained(args.model).cuda()
 
     if args.mode == 'lbl2lbl':
-        compute_and_save(df, 'lbl', tokenizer, model, args.batch_size, args.cutoff, args.output, args.mode)
+        print("Processing label to label similarity...")
+        compute_and_save(df, 'lbl', tokenizer, model, args.batch_size, args.cutoff, os.path.join(args.output, "lbl2lbl_result.csv"), args.mode)
     elif args.mode == 'desc2desc':
-        compute_and_save(df, 'meta_definition_val', tokenizer, model, args.batch_size, args.cutoff, args.output, args.mode)
+        print("Processing description to description similarity...")
+        compute_and_save(df, 'meta_definition_val', tokenizer, model, args.batch_size, args.cutoff, os.path.join(args.output, "desc2desc_result.csv"), args.mode)
     elif args.mode == 'all':
+        print("Processing both label and description similarities...")
         if not os.path.isdir(args.output):
             os.makedirs(args.output, exist_ok=True)
+        print("Processing label to label similarity...")
         compute_and_save(df, 'lbl', tokenizer, model, args.batch_size, args.cutoff,
                          os.path.join(args.output, 'lbl2lbl_result.csv'), args.mode)
+        print("Processing description to description similarity...")
         compute_and_save(df, 'meta_definition_val', tokenizer, model, args.batch_size, args.cutoff,
                          os.path.join(args.output, 'desc2desc_result.csv'), args.mode)
 if __name__ == "__main__":
