@@ -113,6 +113,10 @@ def compute_and_save_with_synonym(df, field, tokenizer, model, batch_size, synon
     out_df.to_csv(out_path, index=False)
     print(f"Saved result to: {out_path}")
 
+
+import argparse
+import os
+
 def main():
     # === argparse 参数解析 ===
     parser = argparse.ArgumentParser(description="Run synonym matching with embeddings")
@@ -121,7 +125,7 @@ def main():
     parser.add_argument("--model", required=True, help="Path to pre-trained model")
     parser.add_argument("-o", "--output", required=True, help="Output folder")
     parser.add_argument("-b", "--batch_size", type=int, default=1024, help="Batch size")
-    parser.add_argument("-m", "--mode", choices=["lbl2lbl", "desc_2_desc", "all"], default="all", help="Mode of operation")
+    parser.add_argument("-m", "--mode", choices=["lbl2lbl", "desc2desc", "all"], default="all", help="Mode of operation")
     args = parser.parse_args()
 
     # === 参数赋值 ===
@@ -149,7 +153,7 @@ def main():
     model = AutoModel.from_pretrained(model_path).cuda()
 
     # === 执行匹配逻辑 ===
-    if mode in ["lbl2lbl", "desc_2_desc"]:
+    if mode in ["lbl2lbl", "desc2desc"]:
         field = "lbl" if mode == "lbl2lbl" else "meta_definition_val"
         df = df_raw[df_raw[field].notna()].reset_index(drop=True)
         compute_and_save_with_synonym(
@@ -163,7 +167,7 @@ def main():
             mode=mode
         )
     elif mode == "all":
-        for m, field in [("lbl2lbl", "lbl"), ("desc_2_desc", "meta_definition_val")]:
+        for m, field in [("lbl2lbl", "lbl"), ("desc2desc", "meta_definition_val")]:
             df = df_raw[df_raw[field].notna()].reset_index(drop=True)
             compute_and_save_with_synonym(
                 df=df,
