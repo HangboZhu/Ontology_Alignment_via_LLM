@@ -7,6 +7,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial.distance import cdist
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from scipy.stats import linregress
 
 # 获取文本嵌入
 def get_embeddings(texts, tokenizer, model):
@@ -33,8 +34,6 @@ def calculate_distances_and_similarities(source_texts, synonyms, tokenizer, mode
     return dist, cos_sim
 
 def plot_quadrant_chart(df, save_prefix):
-    import numpy as np
-    from scipy.stats import linregress
 
     levels = df['Synonym_Level'].unique()
     plt.figure(figsize=(12, 12))
@@ -61,7 +60,7 @@ def plot_quadrant_chart(df, save_prefix):
         plt.legend()
 
     plt.tight_layout()
-    save_path = f"{save_prefix}_combined.png"
+    save_path = f"{save_prefix}"
     plt.savefig(save_path)
     plt.close()
     print(f"Saved combined figure: {save_path}")
@@ -97,7 +96,7 @@ def main(args):
     else:
         raise ValueError(f"Invalid mode: {args.mode}")
 
-    # 去除缺失值
+    # 去除缺失值，目标列里的缺失值
     df = df.dropna(subset=[drop_col, 'Synonym_Vocab'])
 
     # 加载模型

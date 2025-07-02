@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModel
+from transformers import set_seed
 import torch
 from scipy.spatial.distance import cdist
 from sklearn.metrics.pairwise import cosine_similarity
@@ -96,35 +97,44 @@ def main():
     parser.add_argument('-m', '--mode', required=True, choices=['lbl2lbl', 'desc2desc', 'all'], help='Comparison mode')
 
     args = parser.parse_args()
+    set_seed(33)
 
     df = pd.read_csv(args.input)
-    
-    df = df[df["meta_deprecated"] != True]
-    if args.mode == "lbl2lbl":
-        df = df[df["lbl"].notna()]
-    elif args.mode == "desc2desc":
-        df = df[df["meta_definition_val"].notna()]
-    else:
-        df = df[df["lbl"].notna() & df["meta_definition_val"].notna()]
     
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     model = AutoModel.from_pretrained(args.model).cuda()
 
     if args.mode == 'lbl2lbl':
         print("Processing label to label similarity...")
+        df = df[df["lbl"].notna()]
         compute_and_save(df, 'lbl', tokenizer, model, args.batch_size, args.cutoff, os.path.join(args.output, "lbl2lbl_result.csv"), args.mode)
     elif args.mode == 'desc2desc':
         print("Processing description to description similarity...")
+        df = df[df["meta_definition_val"].notna()]
         compute_and_save(df, 'meta_definition_val', tokenizer, model, args.batch_size, args.cutoff, os.path.join(args.output, "desc2desc_result.csv"), args.mode)
     elif args.mode == 'all':
         print("Processing both label and description similarities...")
-        if not os.path.isdir(args.output):
-            os.makedirs(args.output, exist_ok=True)
-        print("Processing label to label similarity...")
-        compute_and_save(df, 'lbl', tokenizer, model, args.batch_size, args.cutoff,
-                         os.path.join(args.output, 'lbl2lbl_result.csv'), args.mode)
-        print("Processing description to description similarity...")
-        compute_and_save(df, 'meta_definition_val', tokenizer, model, args.batch_size, args.cutoff,
-                         os.path.join(args.output, 'desc2desc_result.csv'), args.mode)
+        # if not os.path.isdir(args.output):
+        #     os.makedirs(args.output, exist_ok=True)
+        # print("Processing label to label similarity...")
+        # compute_and_save(df, 'lbl', tokenizer, model, args.batch_size, args.cutoff,
+        #                  os.path.join(args.output, 'lbl2lbl_result.csv'), args.mode)
+        # print("Processing description to description similarity...")
+        # compute_and_save(df, 'meta_definition_val', tokenizer, model, args.batch_size, args.cutoff,
+        #                  os.path.join(args.output, 'desc2desc_result.csv'), args.mode)
+        # for field in ['lbl', 'desc2desc']:
+        #     print(f"Processing {field} similarity...")
+        #     if field == 'lbl':
+        #         df = df[df["lbl"].notna()]
+        #     elif field == 'desc2desc':
+        #         df = df[df["meta_definition_val"].notna()]
+        #     compute_and_save(df, field, tokenizer, model, args.batch_size, args.cutoff,
+        #                      os.path.join(args.output, f"{field}_result.csv"), args.mode)
+        for field, mode_field in [('lbl', 'lbl2lbl'), ('meta_definition_val', 'desc2desc')]:
+            print(f"Processing {mode_field} similarity...")
+            df_field = df[df[field].notna()]
+            compute_and_save(df_field, field, tokenizer, model, args.batch_size, args.cutoff,
+                            os.path.join(args.output, f"{mode_field}_result.csv"), args.mode)
+
 if __name__ == "__main__":
     main()

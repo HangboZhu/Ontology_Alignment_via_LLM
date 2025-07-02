@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModel, set_seed
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial.distance import cdist
 
@@ -129,6 +129,7 @@ def main():
     args = parser.parse_args()
 
     # === 参数赋值 ===
+    set_seed(33)
     data_path = args.input
     synonym_path = args.synonym
     model_path = args.model
@@ -142,12 +143,12 @@ def main():
     print("Loading data & model...")
     synonym_df = pd.read_csv(synonym_path)
     df_raw = pd.read_csv(data_path)
-    if mode == "lbl2lbl":
-        df_raw = df_raw[df_raw["lbl"].notna()]
-    elif mode == "desc_2_desc":
-        df_raw = df_raw[df_raw["meta_definition_val"].notna()]
-    elif mode == "all":
-        df_raw = df_raw[df_raw["meta_definition_val"].notna() | df_raw["lbl"].notna()]
+    # if mode == "lbl2lbl":
+    #     df_raw = df_raw[df_raw["lbl"].notna()]
+    # elif mode == "desc_2_desc":
+    #     df_raw = df_raw[df_raw["meta_definition_val"].notna()]
+    # elif mode == "all":
+    #     df_raw = df_raw[df_raw["meta_definition_val"].notna() | df_raw["lbl"].notna()]
     
     tokenizer = AutoTokenizer.from_pretrained(model_path)  
     model = AutoModel.from_pretrained(model_path).cuda()
@@ -155,7 +156,11 @@ def main():
     # === 执行匹配逻辑 ===
     if mode in ["lbl2lbl", "desc2desc"]:
         field = "lbl" if mode == "lbl2lbl" else "meta_definition_val"
-        df = df_raw[df_raw[field].notna()].reset_index(drop=True)
+        # df = df_raw[df_raw[field].notna()].reset_index(drop=True)
+        if mode == "lbl2lbl":
+            df = df_raw[df_raw["lbl"].notna()].reset_index(drop=True)
+        else:
+            df = df_raw[df_raw["meta_definition_val"].notna()].reset_index(drop=True)
         compute_and_save_with_synonym(
             df=df,
             field=field,
@@ -168,7 +173,10 @@ def main():
         )
     elif mode == "all":
         for m, field in [("lbl2lbl", "lbl"), ("desc2desc", "meta_definition_val")]:
-            df = df_raw[df_raw[field].notna()].reset_index(drop=True)
+            if m == "lbl2lbl":
+                df = df_raw[df_raw["lbl"].notna()].reset_index(drop=True)
+            else:
+                df = df_raw[df_raw["meta_definition_val"].notna()].reset_index(drop=True)
             compute_and_save_with_synonym(
                 df=df,
                 field=field,

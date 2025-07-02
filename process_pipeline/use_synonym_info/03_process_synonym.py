@@ -5,8 +5,12 @@ import pandas as pd
 import argparse
 import os
 
-def process_synonyms(input_path, output_path):
+def process_synonyms(input_path, output_path, mode):
     df = pd.read_csv(input_path)
+    if mode == "def_mode":
+        df = df[df["meta_definition_val"].notna()]
+    elif mode == "lbl_mode":
+        df = df[df["lbl"].notna()]
 
     base_columns = ['id', 'lbl', 'type', 'meta_definition_val', 'meta_comments',
                     'meta_subsets', 'meta_deprecated']
@@ -47,7 +51,22 @@ def process_synonyms(input_path, output_path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process meta_synonyms from CSV.")
     parser.add_argument('-i', '--input', required=True, help="Path to input CSV file")
-    parser.add_argument('-o', '--output', required=True, help="Path to output CSV file")
+    parser.add_argument('-o', '--output', required=True, help="Path to output CSV Folder")
+    parser.add_argument("-m", "--mode", choices=["def_mode", "lbl_mode", "all"], default="all",
+                        help="Mode to filter data: def_mode (drop empty definitions), "
+                             "lbl_mode (drop empty labels), all (keep all)")
 
     args = parser.parse_args()
-    process_synonyms(args.input, args.output)
+    
+    if args.mode == "def_mode":
+        output_file = os.path.join(args.output, "processed_def_mode.csv")
+        process_synonyms(args.input, output_file, args.mode)
+    elif args.mode == "lbl_mode":
+        output_file = os.path.join(args.output, "processed_lbl_mode.csv")
+        process_synonyms(args.input, output_file, args.mode)
+    elif args.mode == "all":
+        for i in ["def_mode", "lbl_mode"]:
+            output_file = os.path.join(args.output, f"processed_{i}.csv")
+            process_synonyms(args.input, output_file, i)
+        
+    
